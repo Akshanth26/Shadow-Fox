@@ -1,0 +1,81 @@
+import os
+import re
+import nltk
+
+# Download necessary NLTK data
+nltk.download('wordnet')
+nltk.download('omw-1.4')
+
+# Sample text creation (optional fallback if final.txt doesn't exist)
+if not os.path.exists('final.txt'):
+    with open('final.txt', 'w', encoding='utf8') as f:
+        f.write("This is a sample text. Try correcting wrds like thes and misspeled ones.")
+
+# Reading text file
+with open('final.txt', 'r', encoding="utf8") as f:
+    file_name_data = f.read().lower()
+    w = re.findall(r'\w+', file_name_data)
+
+# Vocabulary
+main_set = set(w)
+
+# Function to count word frequency
+def counting_words(words):
+    word_count = {}
+    for word in words:
+        word_count[word] = word_count.get(word, 0) + 1
+    return word_count
+
+# Function to calculate word probabilities
+def probab_cal(word_count):
+    total_words = sum(word_count.values())
+    return {word: count / total_words for word, count in word_count.items()}
+
+# Typo correction functions
+def DeleteLetter(word):
+    return [word[:i] + word[i+1:] for i in range(len(word))]
+
+def Switch_(word):
+    return [word[:i] + word[i+1] + word[i] + word[i+2:]
+            for i in range(len(word)-1)]
+
+def Replace_(word):
+    alphs = 'abcdefghijklmnopqrstuvwxyz'
+    return [word[:i] + l + word[i+1:] for i in range(len(word)) for l in alphs]
+
+def insert_(word):
+    alphs = 'abcdefghijklmnopqrstuvwxyz'
+    return [word[:i] + l + word[i:] for i in range(len(word)+1) for l in alphs]
+
+def colab_1(word, allow_switches=True):
+    candidates = set(DeleteLetter(word) + Replace_(word) + insert_(word))
+    if allow_switches:
+        candidates.update(Switch_(word))
+    return candidates
+
+def colab_2(word, allow_switches=True):
+    return set(e2 for e1 in colab_1(word, allow_switches) for e2 in colab_1(e1, allow_switches))
+
+def get_corrections(word, probs, vocab, n=2):
+    suggestions = (
+        [word] if word in vocab else
+        list(colab_1(word).intersection(vocab)) or
+        list(colab_2(word).intersection(vocab))
+    )
+    best_suggestion = [[w, probs.get(w, 0)] for w in suggestions]
+    best_suggestion.sort(key=lambda x: x[1], reverse=True)
+    return best_suggestion[:n]
+
+# Main logic
+word_count = counting_words(w)
+probs = probab_cal(word_count)
+
+my_word = input("Enter any word: ")
+corrections = get_corrections(my_word.lower(), probs, main_set, n=3)
+
+if corrections:
+    print("Did you mean:")
+    for word, _ in corrections:
+        print("-", word)
+else:
+    print("No suggestions found.")
